@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  html_to_pdf.sh --input <url-or-html-file> --output <output.pdf> [--timeout-ms <ms>] [--wait-ms <ms>] [--no-header]
+  html_to_pdf.sh --input <url-or-html-file> --output <output.pdf> [--timeout-ms <ms>] [--wait-ms <ms>] [--no-header] [--white-bg]
 
 Options:
   --input       URL (http/https) or local HTML file path
@@ -12,6 +12,7 @@ Options:
   --timeout-ms  Optional process timeout in milliseconds (default: 120000)
   --wait-ms     Virtual time budget to let JS render before print (default: 12000)
   --no-header   Pass --print-to-pdf-no-header to Chrome
+  --white-bg    For local HTML, inject a white-background/black-text override before printing
 USAGE
 }
 
@@ -20,6 +21,8 @@ OUTPUT=""
 TIMEOUT_MS="120000"
 WAIT_MS="12000"
 NO_HEADER="0"
+WHITE_BG="0"
+TMP_HTML=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-header)
       NO_HEADER="1"
+      shift
+      ;;
+    --white-bg)
+      WHITE_BG="1"
       shift
       ;;
     -h|--help)
@@ -78,6 +85,10 @@ fi
 
 SOURCE_URL="$INPUT"
 if [[ "$INPUT" =~ ^https?:// ]]; then
+  if [[ "$WHITE_BG" == "1" ]]; then
+    echo "--white-bg currently supports local HTML files only." >&2
+    exit 2
+  fi
   SOURCE_URL="$INPUT"
 else
   if [[ ! -f "$INPUT" ]]; then
@@ -92,13 +103,27 @@ else
       ;;
   esac
 
+  LOCAL_HTML="$INPUT"
+  if [[ "$WHITE_BG" == "1" ]]; then
+    TMP_HTML="$(mktemp /tmp/html-to-pdf.XXXXXX.html)"
+    awk 'BEGIN{injected=0} {if(!injected && $0 ~ /<\/head>/){print "<style id=\"pdf-white-bg\">"; print "body { background: #ffffff !important; animation: none !important; background-size: auto !important; color: #111111 !important; }"; print "header, .subtitle, h1, h2, h3, h4, p, span, div, td, th { color: #111111 !important; }"; print ".stat-item, .controls, .table-container, .search-box input, .filter-btn, .detail-btn { background: #ffffff !important; border-color: #d1d5db !important; }"; print "</style>"; injected=1} print }' "$INPUT" > "$TMP_HTML"
+    LOCAL_HTML="$TMP_HTML"
+  fi
+
   if command -v python3 >/dev/null 2>&1; then
-    SOURCE_URL="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$INPUT")"
+    SOURCE_URL="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$LOCAL_HTML")"
   else
-    ABS_PATH="$(cd "$(dirname "$INPUT")" && pwd)/$(basename "$INPUT")"
+    ABS_PATH="$(cd "$(dirname "$LOCAL_HTML")" && pwd)/$(basename "$LOCAL_HTML")"
     SOURCE_URL="file://$ABS_PATH"
   fi
 fi
+
+cleanup() {
+  if [[ -n "$TMP_HTML" && -f "$TMP_HTML" ]]; then
+    rm -f "$TMP_HTML"
+  fi
+}
+trap cleanup EXIT
 
 CHROME=""
 if command -v google-chrome >/dev/null 2>&1; then

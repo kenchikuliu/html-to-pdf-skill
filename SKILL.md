@@ -28,6 +28,14 @@ bash scripts/html_to_pdf.sh \
   --output "/tmp/page.pdf" \
   --wait-ms 12000 \
   --no-header
+
+# JS-heavy page with dark/gradient background -> readable print
+bash scripts/html_to_pdf.sh \
+  --input "/path/page.html" \
+  --output "/tmp/page-readable.pdf" \
+  --wait-ms 20000 \
+  --no-header \
+  --white-bg
 ```
 
 ## Script Behavior
@@ -37,6 +45,7 @@ bash scripts/html_to_pdf.sh \
 - Convert local files to `file://` URLs automatically.
 - Wait for JS-heavy pages with `--wait-ms`.
 - Remove most default print header/footer markers with `--no-header`.
+- Optionally force white background/black text for local HTML with `--white-bg`.
 - Create output directory if missing.
 - Fail fast with clear error messages.
 
