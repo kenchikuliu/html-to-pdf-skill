@@ -1,6 +1,6 @@
 ---
 name: html-to-pdf
-description: Convert web pages or local HTML files into PDF using headless Chrome. Use when asked to export a URL as PDF, convert an .html file to PDF, generate printable snapshots of pages, or batch-render links/doc pages for sharing/archiving.
+description: Convert web pages or local HTML files into PDF using headless Chrome, and scaffold a deployable web API service for URL-to-PDF and URL-to-screenshot workflows. Use when asked to export a URL as PDF, convert an .html file to PDF, generate screenshots, or deploy HTML/PDF capture as a web service.
 ---
 
 # HTML to PDF
@@ -59,3 +59,47 @@ pdfinfo /path/output.pdf | rg '^(Title|Pages|Page size):'
 ```
 
 If `pdfinfo` is missing, use `file /path/output.pdf` as fallback.
+
+## Deploy As Service
+
+Generate a deployable service template:
+
+```bash
+bash scripts/scaffold_web_service.sh --output-dir /path/to/html-pdf-shot-service
+```
+
+The generated service provides:
+
+- `POST /pdf` for URL -> PDF
+- `POST /screenshot` for URL -> PNG/JPEG
+- `GET /healthz` health check
+
+Run locally:
+
+```bash
+cd /path/to/html-pdf-shot-service
+npm install
+npm start
+```
+
+Docker deploy (generic web platforms):
+
+```bash
+cd /path/to/html-pdf-shot-service
+docker build -t html-pdf-shot-service .
+docker run --rm -p 8080:8080 html-pdf-shot-service
+```
+
+Example API calls:
+
+```bash
+curl -X POST 'http://localhost:8080/pdf' \
+  -H 'content-type: application/json' \
+  -d '{"url":"https://learn.charliiai.com/","waitMs":2000}' \
+  --output out.pdf
+
+curl -X POST 'http://localhost:8080/screenshot' \
+  -H 'content-type: application/json' \
+  -d '{"url":"https://learn.charliiai.com/","waitMs":2000,"fullPage":true}' \
+  --output out.png
+```

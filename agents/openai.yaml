@@ -1,4 +1,4 @@
 interface:
   display_name: "HTML to PDF"
-  short_description: "Convert URLs or local HTML files into PDF with headless Chrome."
-  default_prompt: "Convert this webpage or HTML file into a PDF and save it to a specified path."
+  short_description: "Convert HTML/URLs to PDF and scaffold a deployable PDF+screenshot web service."
+  default_prompt: "Convert this page to PDF, or scaffold a web service with /pdf and /screenshot endpoints."
