@@ -18,12 +18,16 @@ description: Convert web pages or local HTML files into PDF using headless Chrom
 # URL -> PDF
 bash scripts/html_to_pdf.sh \
   --input "https://example.com" \
-  --output "/tmp/example.pdf"
+  --output "/tmp/example.pdf" \
+  --wait-ms 12000 \
+  --no-header
 
 # Local HTML -> PDF
 bash scripts/html_to_pdf.sh \
   --input "/path/page.html" \
-  --output "/tmp/page.pdf"
+  --output "/tmp/page.pdf" \
+  --wait-ms 12000 \
+  --no-header
 ```
 
 ## Script Behavior
@@ -31,6 +35,8 @@ bash scripts/html_to_pdf.sh \
 - Auto-detect Chrome binary from common macOS/Linux paths.
 - Accept URL or local `.html` file path.
 - Convert local files to `file://` URLs automatically.
+- Wait for JS-heavy pages with `--wait-ms`.
+- Remove most default print header/footer markers with `--no-header`.
 - Create output directory if missing.
 - Fail fast with clear error messages.
 

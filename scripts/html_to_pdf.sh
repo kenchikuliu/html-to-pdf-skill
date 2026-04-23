@@ -4,18 +4,22 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  html_to_pdf.sh --input <url-or-html-file> --output <output.pdf> [--timeout-ms <ms>]
+  html_to_pdf.sh --input <url-or-html-file> --output <output.pdf> [--timeout-ms <ms>] [--wait-ms <ms>] [--no-header]
 
 Options:
   --input       URL (http/https) or local HTML file path
   --output      Output PDF path (must end with .pdf)
   --timeout-ms  Optional process timeout in milliseconds (default: 120000)
+  --wait-ms     Virtual time budget to let JS render before print (default: 12000)
+  --no-header   Pass --print-to-pdf-no-header to Chrome
 USAGE
 }
 
 INPUT=""
 OUTPUT=""
 TIMEOUT_MS="120000"
+WAIT_MS="12000"
+NO_HEADER="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,6 +34,14 @@ while [[ $# -gt 0 ]]; do
     --timeout-ms)
       TIMEOUT_MS="${2:-}"
       shift 2
+      ;;
+    --wait-ms)
+      WAIT_MS="${2:-}"
+      shift 2
+      ;;
+    --no-header)
+      NO_HEADER="1"
+      shift
       ;;
     -h|--help)
       usage
@@ -56,6 +68,11 @@ fi
 
 if [[ ! "$TIMEOUT_MS" =~ ^[0-9]+$ ]]; then
   echo "--timeout-ms must be an integer." >&2
+  exit 2
+fi
+
+if [[ ! "$WAIT_MS" =~ ^[0-9]+$ ]]; then
+  echo "--wait-ms must be an integer." >&2
   exit 2
 fi
 
@@ -102,21 +119,27 @@ fi
 
 mkdir -p "$(dirname "$OUTPUT")"
 
+# Build Chrome args.
+CHROME_ARGS=(
+  --headless=new
+  --disable-gpu
+  --no-sandbox
+  --virtual-time-budget="$WAIT_MS"
+  --print-to-pdf="$OUTPUT"
+)
+
+if [[ "$NO_HEADER" == "1" ]]; then
+  CHROME_ARGS+=(--print-to-pdf-no-header)
+fi
+
+CHROME_ARGS+=("$SOURCE_URL")
+
 # Use shell timeout when available; otherwise run directly.
 if command -v timeout >/dev/null 2>&1; then
-  timeout "$((TIMEOUT_MS / 1000))" "$CHROME" \
-    --headless=new \
-    --disable-gpu \
-    --no-sandbox \
-    --print-to-pdf="$OUTPUT" \
-    "$SOURCE_URL"
+  TIMEOUT_SEC="$(((TIMEOUT_MS + 999) / 1000))"
+  timeout "$TIMEOUT_SEC" "$CHROME" "${CHROME_ARGS[@]}"
 else
-  "$CHROME" \
-    --headless=new \
-    --disable-gpu \
-    --no-sandbox \
-    --print-to-pdf="$OUTPUT" \
-    "$SOURCE_URL"
+  "$CHROME" "${CHROME_ARGS[@]}"
 fi
 
 if [[ ! -s "$OUTPUT" ]]; then
